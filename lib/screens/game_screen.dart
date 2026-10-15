@@ -6,12 +6,22 @@ import '../models/dart_throw.dart';
 import '../models/game_state.dart';
 import '../providers/game_provider.dart';
 import '../widgets/dartboard.dart';
+import '../widgets/score_keypad.dart';
 
-class GameScreen extends ConsumerWidget {
+enum InputMode { board, keypad }
+
+class GameScreen extends ConsumerStatefulWidget {
   const GameScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<GameScreen> createState() => _GameScreenState();
+}
+
+class _GameScreenState extends ConsumerState<GameScreen> {
+  InputMode _inputMode = InputMode.board;
+
+  @override
+  Widget build(BuildContext context) {
     final game = ref.watch(gameProvider);
     final notifier = ref.read(gameProvider.notifier);
 
@@ -45,25 +55,44 @@ class GameScreen extends ConsumerWidget {
           children: [
             _Scoreboard(game: game),
             _CurrentTurn(game: game),
-            Expanded(
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Dartboard(onHit: notifier.throwDart),
-                ),
-              ),
-            ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              child: SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  icon: const Icon(Icons.close),
-                  label: const Text('Fléchette ratée'),
-                  onPressed: game.isFinished ? null : () => notifier.throwDart(const DartThrow.miss()),
-                ),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: SegmentedButton<InputMode>(
+                segments: const [
+                  ButtonSegment(value: InputMode.board, icon: Icon(Icons.track_changes), label: Text('Cible')),
+                  ButtonSegment(value: InputMode.keypad, icon: Icon(Icons.dialpad), label: Text('Pavé')),
+                ],
+                selected: {_inputMode},
+                onSelectionChanged: (s) => setState(() => _inputMode = s.first),
               ),
             ),
+            if (_inputMode == InputMode.board) ...[
+              Expanded(
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Dartboard(onHit: notifier.throwDart),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.close),
+                    label: const Text('Fléchette ratée'),
+                    onPressed: game.isFinished ? null : () => notifier.throwDart(const DartThrow.miss()),
+                  ),
+                ),
+              ),
+            ] else
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+                  child: ScoreKeypad(onHit: notifier.throwDart, enabled: !game.isFinished),
+                ),
+              ),
           ],
         ),
       ),
