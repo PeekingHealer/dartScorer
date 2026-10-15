@@ -5,13 +5,16 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -25,7 +28,15 @@ jobs:
       - run: flutter test
       - run: flutter build apk --release
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: darts-scorer-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+      # Publie l'APK dans une Release : téléchargeable directement depuis un téléphone via
+      # https://github.com/<owner>/<repo>/releases/latest/download/darts-scorer.apk
+      - name: Publier l'APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp build/app/outputs/flutter-apk/app-release.apk darts-scorer.apk
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest darts-scorer.apk \
+            --target "$GITHUB_SHA" \
+            --title "Darts Scorer (dernière version)" \
+            --notes "APK compilé automatiquement depuis le commit $GITHUB_SHA."
